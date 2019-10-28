@@ -108,19 +108,23 @@ void send_links(){
 	Package msg_out;
 	msg_out.num_pack = qtd_message;
 	msg_out.origin = id_router;
-	msg_out.type = 0;
+	msg_out.type = 1;
+
+	for(i = 0; i < N_ROT; i++)
+		msg_out.content[i] = router_table.cost[i];
 	
 	for(i = 0; i < N_ROT; i++){
-		msg_out.dest = i;
-		msg_out = msg_out;
-		qtd_message++; //atualiza a quantidade de mensagem que foram enviadas
-
-		if(i != id_router){
+		if(i != id_router && router_table.cost[i] != 100){
+			msg_out.dest = i;
+			msg_out = msg_out;
+			qtd_message++; //atualiza a quantidade de mensagem que foram enviadas
+			
 			si_other.sin_port = htons(router[i].port);
 			if(inet_aton(router[i].ip, &si_other.sin_addr) == 0)
 				die("\t Erro ao tentar encontrar o IP destino inet_aton() ");
 			else{
-				
+				if(sendto(router_socket, &msg_out, sizeof(msg_out), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1)
+				die("\t Erro ao enviar a mensagem! sendto() ");
 			}
 		}
 	}
@@ -314,7 +318,7 @@ void *receiver(void *data){ //função da thread receiver
 				Package ack_reply;
 				ack_reply.origin = message_in.dest;
 				ack_reply.dest = message_in.origin;
-				ack_reply.type = "2";
+				ack_reply.type = 2;
 
 				si_other.sin_port = htons(router[ack_reply.dest].port); //enviando para o socket
 
@@ -406,6 +410,7 @@ int main(int argc, char *argv[]){
 	pathcost(links_table);
 
 	create_router(); //função que lê e cria os roteadores do arquivo roteadores.config
+	send_links();
 
 	print_dijkstra(dijkstra_info);
 
