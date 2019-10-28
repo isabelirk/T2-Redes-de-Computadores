@@ -105,8 +105,16 @@ void read_links(int tab[N_ROT][N_ROT]){ //função que lê os enlaces
 
 void send_links(){
 	int i;
-
+	Package msg_out;
+	msg_out.num_pack = qtd_message;
+	msg_out.origin = id_router;
+	msg_out.type = 0;
+	
 	for(i = 0; i < N_ROT; i++){
+		msg_out.dest = i;
+		msg_out = msg_out;
+		qtd_message++; //atualiza a quantidade de mensagem que foram enviadas
+
 		if(i != id_router){
 			si_other.sin_port = htons(router[i].port);
 			if(inet_aton(router[i].ip, &si_other.sin_addr) == 0)
@@ -241,7 +249,7 @@ void create_message(){//função cria mensagem
 	router[id_router].msg_out[qtd_message].num_pack = qtd_message;
 	router[id_router].msg_out[qtd_message].origin = id_router;
 	router[id_router].msg_out[qtd_message].dest = destination;
-	router[id_router].msg_out[qtd_message].ack = FALSE;
+	router[id_router].msg_out[qtd_message].type = 1;
 
 	next_id = router_table.path[destination]; //quem vai receber a mensagem
 
@@ -292,7 +300,7 @@ void *receiver(void *data){ //função da thread receiver
 			die("\tErro ao receber mensagem! recvfrom() ");
 
 		if(message_in.dest == id_router){
-			if(!message_in.ack){
+			if(message_in.type == 1){
 				printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
 				printf("\t┃ Mensagem Nº %02d recebido do roteador com ID %02d...             ┃\n", message_out.num_pack+1, message_out.origin+1);
 				printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");
@@ -306,7 +314,7 @@ void *receiver(void *data){ //função da thread receiver
 				Package ack_reply;
 				ack_reply.origin = message_in.dest;
 				ack_reply.dest = message_in.origin;
-				ack_reply.ack = TRUE;
+				ack_reply.type = "2";
 
 				si_other.sin_port = htons(router[ack_reply.dest].port); //enviando para o socket
 
