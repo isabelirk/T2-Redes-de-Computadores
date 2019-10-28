@@ -21,6 +21,7 @@ typedef struct{       //estrutura do pacote
     int origin, dest, type;
     unsigned short ack;
     int num_pack;     //número do pacote
+    int tabela[N_ROT]; 
     char content[MSG_SIZE]; //conteudo da mensagem
 }Package;
 

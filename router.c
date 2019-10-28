@@ -108,17 +108,17 @@ void send_links(){
 	Package msg_out;
 	msg_out.num_pack = qtd_message;
 	msg_out.origin = id_router;
-	msg_out.type = 1;
+	msg_out.type = 0;
 
 	for(i = 0; i < N_ROT; i++)
-		msg_out.content[i] = router_table.cost[i];
-	
+		msg_out.tabela[i] = router_table.cost[i];
+
 	for(i = 0; i < N_ROT; i++){
 		if(i != id_router && router_table.cost[i] != 100){
 			msg_out.dest = i;
 			msg_out = msg_out;
 			qtd_message++; //atualiza a quantidade de mensagem que foram enviadas
-			
+
 			si_other.sin_port = htons(router[i].port);
 			if(inet_aton(router[i].ip, &si_other.sin_addr) == 0)
 				die("\t Erro ao tentar encontrar o IP destino inet_aton() ");
