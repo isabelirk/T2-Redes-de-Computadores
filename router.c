@@ -136,12 +136,29 @@ void send_links(){
 	}
 }
 
-void update_dist(int type, int neigh_dist[], int neigh){
-	if(type == 2){
-		int link_cost = router_table.cost[neigh];
-		for(int i = 0; i < N_ROT; i++){
-			links_table[neigh][i] = neigh_dist[i];
+void update_dist(int neigh_dist[], int neigh){
+	int ver = FALSE, link_cost = router_table.cost[neigh];
+	time_t clk = time(NULL);
+
+	for(int i = 0; i < N_ROT; i++){
+		links_table[neigh][i] = neigh_dist[i];
+	}
+
+	for(int i = 0; i < N_ROT; i++){
+		if(router_table.cost[i] > neigh_dist[i]+link_cost && i != id_router){
+			router_table.path[i] = neigh;
+			router_table.cost[i] = neigh_dist[i]+link_cost;
+			links_table[id_router][i] = neigh_dist[i]+link_cost;
+			clk = time(NULL);
+			ver = TRUE;
 		}
+	}
+	if(ver){
+		printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
+		printf("\t┃ Vetor Distancia alterado em: %s", ctime(&clk));
+		printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");
+		send_links();
+		sleep(5);
 	}
 }
 
@@ -347,7 +364,7 @@ void *receiver(void *data){ //função da thread receiver
 				for(int i = 0; i < N_ROT; i++)
 					printf("%d ", message_in.dist[i]);
 				printf("\n");
-				update_dist(2, message_in.dist, message_in.origin);
+				update_dist(message_in.dist, message_in.origin);
 				sleep(4);
 			}
 			else if(message_in.type = 2 && router[id_router].waiting_ack)
