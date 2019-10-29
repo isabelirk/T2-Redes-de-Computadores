@@ -120,7 +120,7 @@ void send_links(){
 		msg_out.dist[i] = router_table.cost[i];
 
 	for(i = 0; i < N_ROT; i++){
-		if(i != id_router && router_table.cost[i] != 100){
+		if(i != id_router && router_table.path[i] == i){
 			msg_out.dest = i;
 			msg_out.num_pack = qtd_message;
 			qtd_message++; //atualiza a quantidade de mensagem que foram enviadas
@@ -156,9 +156,12 @@ void update_dist(int neigh_dist[], int neigh){
 	if(ver){
 		printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
 		printf("\t┃ Vetor Distancia alterado em: %s", ctime(&clk));
-		printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");
+		printf("\t┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");
+		printf("\t┃ Novo Vetor: ");
+		for(int i = 0; i < N_ROT; i++)
+			printf("%d ", router_table.cost[i]);
+		printf("\n\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");
 		send_links();
-		sleep(5);
 	}
 }
 
