@@ -116,7 +116,7 @@ void send_links(){
 	for(i = 0; i < N_ROT; i++){
 		if(i != id_router && router_table.cost[i] != 100){
 			msg_out.dest = i;
-			msg_out = msg_out;
+			msg_out.num_pack = qtd_message;
 			qtd_message++; //atualiza a quantidade de mensagem que foram enviadas
 
 			si_other.sin_port = htons(router[i].port);
@@ -297,7 +297,7 @@ void *receiver(void *data){ //função da thread receiver
 	int next;
 
 	while(1){
-		Package message_in = router[id_router].msg_in[qtd_message_in];
+		Package message_in;
 		Package message_out = router[id_router].msg_out[qtd_message];
     
 		if((recvfrom(router_socket, &message_in, sizeof(message_in), 0, (struct sockaddr *) &si_me, &slen)) == -1)
@@ -306,7 +306,7 @@ void *receiver(void *data){ //função da thread receiver
 		if(message_in.dest == id_router){
 			if(message_in.type == 1){
 				printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
-				printf("\t┃ Mensagem Nº %02d recebido do roteador com ID %02d...             ┃\n", message_out.num_pack+1, message_out.origin+1);
+				printf("\t┃ Mensagem Nº %02d recebido do roteador com ID %02d...             ┃\n", message_in.num_pack+1, message_in.origin+1);
 				printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");
 				printf("\t Mensagem: %50s \n", message_in.content);
 				
@@ -325,8 +325,18 @@ void *receiver(void *data){ //função da thread receiver
 				if(sendto(router_socket, &ack_reply, sizeof(ack_reply), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1)
 					die("\tErro ao enviar a mensagem! sendto() ");
 			}
-			else if(router[id_router].waiting_ack)
+			else if(message_in.type == 0){
+				printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
+				printf("\t┃ Vetor Distancia - MSG Nº %02d recebido do roteador com ID %02d...┃\n", message_in.num_pack+1, message_in.origin+1);
+				printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");
+				for(int i = 0; i < N_ROT; i++)
+					printf("%d ", message_in.tabela[i]);
+				printf("\n");
+				sleep(4);
+			}
+			else if(message_in.type = 2 && router[id_router].waiting_ack)
 				router[id_router].waiting_ack = FALSE;
+
 		}
 		else{
 			message_out = message_in;
