@@ -425,9 +425,6 @@ int main(int argc, char *argv[]){
 
 	read_links(links_table); //função que lê do arquivo enlaces.config
 
-	for(int i = 0; i < N_ROT; i++)
-		printf("%d %d\n", router_table.cost[i], links_table[id_router][i]);
-
 	inicializa_dijkstra(dijkstra_info); // inicializa matriz djkistra
 	dijkstra_info[id_router].cost = 0;
     dijkstra(links_table, dijkstra_info, id_router); // algoritimo dijkstra recursivo
