@@ -14,27 +14,43 @@ void die(char *s){ //função que retorna os erros que aconteçam na execução 
 
 void menu(){ //função menu
 	sleep(3);
-	system("clear");
-		printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
-		printf("\t┃                           Roteador %02d                        ┃\n", id_router+1);
-		printf("\t┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");
-		printf("\t┃                     ➊ ─ Enviar mensagem ─ ➊                  ┃\n");
-		printf("\t┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");
-		printf("\t┃               ➋ ─ Ver historico de mensagens ─ ➋             ┃\n");
-		printf("\t┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");
-		printf("\t┃                         ⓿ ─ Sair ─ ⓿                         ┃\n");
-		printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
+	printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
+	printf("\t┃                           Roteador %02d                        ┃\n", id_router+1);
+	printf("\t┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");
+	printf("\t┃                     ➊ ─ Enviar mensagem ─ ➊                  ┃\n");
+	printf("\t┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");
+	printf("\t┃               ➋ ─ Ver historico de mensagens ─ ➋             ┃\n");
+	printf("\t┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");
+	printf("\t┃                         ⓿ ─ Sair ─ ⓿                         ┃\n");
+	printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
 }
+
+void print_dist(){
+	printf("\t┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓\n");
+    printf("\t┃  Vértice Destino  ┃  Proximo vértice do Caminho  ┃   Custo   ┃\n");
+    printf("\t┣━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━┫\n");
+    for(int i = 0; i < N_ROT; i++){ 
+		if(router_table.cost[i] == 100)
+			printf("\t┃         %d         ┃               -              ┃     ∞     ┃\n", i+1);
+		else
+			printf("\t┃         %d         ┃               %d              ┃ %5d     ┃\n", i+1, router_table.path[i]+1, router_table.cost[i]);
+    }
+    printf("\t┗━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━┛\n\n");
+	sleep(3);
+}
+
 
 void read_links(int tab[N_ROT][N_ROT]){ //função que lê os enlaces
 	int x, y, cost;
 	for (int i = 0; i < N_ROT; i++){
 		if(i != id_router){
 			router_table.cost[i] = 100;
+			router_table.path[i] = -1;
 			tab[id_router][i] = 100;
 		}
 		else{
 			router_table.cost[i] = 0;
+			router_table.path[i] = id_router;
 			tab[id_router][i] = 0;
 		}
 	}
@@ -105,11 +121,8 @@ void update_dist(int neigh_dist[], int neigh){
 	if(ver){
 		printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
 		printf("\t┃ Vetor Distancia alterado em: %s", ctime(&clk));
-		printf("\t┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");
-		printf("\t┃ Novo Vetor: ");
-		for(int i = 0; i < N_ROT; i++)
-			printf("%d ", router_table.cost[i]);
-		printf("\n\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");
+		printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");
+		print_dist();
 		send_links();
 	}
 }
@@ -335,20 +348,6 @@ void *receiver(void *data){ //função da thread receiver
 	menu();
 }
 
-void print_dist(){
-	printf("\t┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓\n");
-    printf("\t┃  Vértice Destino  ┃  Proximo vértice do Caminho  ┃   Custo   ┃\n");
-    printf("\t┣━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━┫\n");
-    for(int i = 0; i < N_ROT; i++){ 
-		if(router_table.cost[i] == 100)
-			printf("\t┃         %d         ┃               -              ┃     ∞     ┃\n", i+1);
-		else
-			printf("\t┃         %d         ┃               %d              ┃ %5d     ┃\n", i+1, router_table.path[i]+1, router_table.cost[i]);
-    }
-    printf("\t┗━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━┛\n\n");
-	sleep(3);
-}
-
 int main(int argc, char *argv[]){
 
 	//faz uma comparação com o que veio de parametro no comando executável
@@ -367,12 +366,18 @@ int main(int argc, char *argv[]){
 	read_links(links_table); //função que lê do arquivo enlaces.config
 
 	create_router(); //função que lê e cria os roteadores do arquivo roteadores.config
-	send_links();
 
 	print_dist();
 
+	send_links();
+
 	pthread_create(&receiver_thread, NULL, receiver, NULL); //terceiro parametro é a função que a thread ira rodar
-	pthread_create(&sender_thread, NULL, sender, NULL);
+	pthread_create(&sender_thread, NULL, sender, NULL)	;
+
+	while(1){
+		sleep(500);
+		send_links();
+	}
 
 	pthread_join(receiver_thread, NULL);
 	pthread_join(sender_thread, NULL);
