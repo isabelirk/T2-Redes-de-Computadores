@@ -181,7 +181,7 @@ void create_router(){ //função que cria os sockets para os roteadores
 	printf("\t┣━━━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");
 	printf("\t┃     %02d      ┃  %6d   ┃  %32s  ┃\n", router[id_router].id,  router[id_router].port,  router[id_router].ip);
 	printf("\t┗━━━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
-	sleep(5);
+	sleep(2);
 
 	if((router_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 		die("\t Erro ao criar socket! ");
@@ -386,23 +386,17 @@ void *receiver(void *data){ //função da thread receiver
 	menu();
 }
 
-void print_dijkstra_line(mat_dijkstra dijkstra_info[], int indice){
-	if(dijkstra_info[indice].prev > -1){
-        print_dijkstra_line(dijkstra_info, dijkstra_info[indice].prev);
+void print_dist(){
+	printf("\t┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓\n");
+    printf("\t┃  Vértice Destino  ┃  Proximo vértice do Caminho  ┃   Custo   ┃\n");
+    printf("\t┣━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━┫\n");
+    for(int i = 0; i < N_ROT; i++){ 
+		if(router_table.cost[i] == 100)
+			printf("\t┃         %d         ┃               -              ┃     ∞     ┃\n", i+1);
+		else
+			printf("\t┃         %d         ┃               %d              ┃ %5d     ┃\n", i+1, router_table.path[i]+1, router_table.cost[i]);
     }
-    printf(" %d ", indice+1);
-}
-
-void print_dijkstra(mat_dijkstra dijkstra_info[]){
-	printf("\t┏━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
-    printf("\t┃   Vértice   ┃ Anterior  ┃   Custo   ┃      Menor Caminho     ┃\n");
-    printf("\t┣━━━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━┛\n");
-    for(int i = 0; i < N_ROT; i++){
-   		printf("\t┃      %d      ┃     %d     ┃ %5d     ┃", i +1, dijkstra_info[i].prev+1, dijkstra_info[i].cost);
-        print_dijkstra_line(dijkstra_info, i);
-        printf("\n");
-    }
-    printf("\t┗━━━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┛\n\n");
+    printf("\t┗━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━┛\n\n");
 	sleep(3);
 }
 
@@ -425,14 +419,10 @@ int main(int argc, char *argv[]){
 
 	read_links(links_table); //função que lê do arquivo enlaces.config
 
-	inicializa_dijkstra(dijkstra_info); // inicializa matriz djkistra
-	dijkstra_info[id_router].cost = 0;
-    dijkstra(links_table, dijkstra_info, id_router); // algoritimo dijkstra recursivo
-
 	create_router(); //função que lê e cria os roteadores do arquivo roteadores.config
 	send_links();
 
-	print_dijkstra(dijkstra_info);
+	print_dist();
 
 	pthread_create(&receiver_thread, NULL, receiver, NULL); //terceiro parametro é a função que a thread ira rodar
 	pthread_create(&sender_thread, NULL, sender, NULL);
