@@ -26,57 +26,6 @@ void menu(){ //função menu
 		printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
 }
 
-void inicializa_dijkstra(mat_dijkstra dijkstra_info[]) {
-    for (int i = 0; i < N_ROT; i++) {
-        dijkstra_info[i].visit = 0;
-        dijkstra_info[i].cost = 10000;
-        dijkstra_info[i].prev = -1;
-    }
-}
-
-int menor(mat_dijkstra dijkstra_info[], int *para) {
-    int menorIndice, i, menorcost = 1000;
-
-    for(i = 0; i < N_ROT; i++){ 
-        if(dijkstra_info[i].visit == 0){ 
-            break;
-        }
-    }    
-
-    if(i == N_ROT){
-        *para = 1;
-        return 0;
-    }
-
-    for(i = 0; i < N_ROT; i++){
-        if((dijkstra_info[i].cost < menorcost) && (dijkstra_info[i].visit == 0)){
-            menorcost = dijkstra_info[i].cost;
-            menorIndice = i;
-        }
-    }
-
-    return menorIndice;
-}
-
-void dijkstra(int graph[N_ROT][N_ROT], mat_dijkstra dijkstra_info[], int vertex){
-    // marcar vértice como visitado
-    dijkstra_info[vertex].visit = 1;
-
-    //percorrer para registrar custo e vértice anterior
-    for(int i = 0; i < N_ROT; i++){
-        if((graph[vertex][i] > 0) && (dijkstra_info[i].visit == 0) && (dijkstra_info[vertex].cost + graph[vertex][i] < dijkstra_info[i].cost)){
-			dijkstra_info[i].cost = graph[vertex][i] + dijkstra_info[vertex].cost;
-            dijkstra_info[i].prev = vertex;
-        }
-    }
-
-    // repetir o processo para o menor filho não visitado
-    int para = 0, prox = menor(dijkstra_info, &para);
-    
-	if(!para)
-		dijkstra(graph, dijkstra_info, prox);
-}	
-
 void read_links(int tab[N_ROT][N_ROT]){ //função que lê os enlaces
 	int x, y, cost;
 	for (int i = 0; i < N_ROT; i++){
@@ -401,8 +350,6 @@ void print_dist(){
 }
 
 int main(int argc, char *argv[]){
-
-	mat_dijkstra dijkstra_info[N_ROT];
 
 	//faz uma comparação com o que veio de parametro no comando executável
 	if(argc < 2)
