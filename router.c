@@ -4,7 +4,7 @@ Router router[N_ROT];
 Table router_table;
 
 pthread_t receiver_thread, sender_thread;
-int router_socket, id_router, qtd_message = 0, qtd_message_in = 0, max_cost = 100;
+int router_socket, id_router, qtd_message = 0, qtd_message_in = 0, max_cost = 100, links_table[N_ROT][N_ROT];
 struct sockaddr_in si_me, si_other;
 
 void die(char *s){ //função que retorna os erros que aconteçam na execução e encerra
@@ -117,7 +117,7 @@ void send_links(){
 	msg_out.type = 0;
 
 	for(i = 0; i < N_ROT; i++)
-		msg_out.tabela[i] = router_table.cost[i];
+		msg_out.dist[i] = router_table.cost[i];
 
 	for(i = 0; i < N_ROT; i++){
 		if(i != id_router && router_table.cost[i] != 100){
@@ -132,6 +132,15 @@ void send_links(){
 				if(sendto(router_socket, &msg_out, sizeof(msg_out), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1)
 				die("\t Erro ao enviar a mensagem! sendto() ");
 			}
+		}
+	}
+}
+
+void update_dist(int type, int neigh_dist[], int neigh){
+	if(type == 2){
+		int link_cost = router_table.cost[neigh];
+		for(int i = 0; i < N_ROT; i++){
+			links_table[neigh][i] = neigh_dist[i];
 		}
 	}
 }
@@ -336,8 +345,9 @@ void *receiver(void *data){ //função da thread receiver
 				printf("\t┃ Vetor Distancia - MSG Nº %02d recebido do roteador com ID %02d...┃\n", message_in.num_pack+1, message_in.origin+1);
 				printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\t  ");
 				for(int i = 0; i < N_ROT; i++)
-					printf("%d ", message_in.tabela[i]);
-				printf("\n");		
+					printf("%d ", message_in.dist[i]);
+				printf("\n");
+				update_dist(2, message_in.dist, message_in.origin);
 				sleep(4);
 			}
 			else if(message_in.type = 2 && router[id_router].waiting_ack)
@@ -377,7 +387,7 @@ void print_dijkstra(mat_dijkstra dijkstra_info[]){
 }
 
 int main(int argc, char *argv[]){
-	int links_table[N_ROT][N_ROT];
+
 	mat_dijkstra dijkstra_info[N_ROT];
 
 	//faz uma comparação com o que veio de parametro no comando executável
