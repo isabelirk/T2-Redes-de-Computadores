@@ -92,11 +92,13 @@ void read_links(int tab[N_ROT][N_ROT]){ //função que lê os enlaces
 		for (int i = 0; fscanf(file, "%d %d %d", &x, &y, &cost) != EOF; i++){
 			if((x-1) == id_router){
 				tab[x-1][y-1] = cost;		
-				router_table.cost[y-1] = cost; 
+				router_table.cost[y-1] = cost;
+				router_table.path[y-1] = y-1; 
 			}
 			else if((y-1) == id_router){
 				tab[y-1][x-1] = cost;
 				router_table.cost[x-1] = cost;
+				router_table.path[x-1] = x-1; 
 			}	
 		}
 		fclose(file);
@@ -328,7 +330,7 @@ void *receiver(void *data){ //função da thread receiver
 			else if(message_in.type == 0){
 				printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
 				printf("\t┃ Vetor Distancia - MSG Nº %02d recebido do roteador com ID %02d...┃\n", message_in.num_pack+1, message_in.origin+1);
-				printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");
+				printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\t  ");
 				for(int i = 0; i < N_ROT; i++)
 					printf("%d ", message_in.tabela[i]);
 				printf("\n");
@@ -347,25 +349,6 @@ void *receiver(void *data){ //função da thread receiver
 			sleep(2);
 			send_message(next, message_out);
 		}
-	}
-}
-
-void define_path(mat_dijkstra dijkstra_info[], int indice, int position){
-	if(dijkstra_info[indice].prev > -1){	
-		if(dijkstra_info[indice].prev == id_router){
-			router_table.path[position] = indice;	
-			return;	
-		}
-        define_path(dijkstra_info, dijkstra_info[indice].prev, position);
-    }
-	if(dijkstra_info[indice].prev == -1){
-		router_table.path[position] = position;
-	}
-}
-
-void pathcost(int tab[N_ROT][N_ROT]){
-	for(int i = 0; i < N_ROT; i++){
-		router_table.cost[i] = tab[id_router][router_table.path[i]];
 	}
 }
 
@@ -414,10 +397,6 @@ int main(int argc, char *argv[]){
 	inicializa_dijkstra(dijkstra_info); // inicializa matriz djkistra
 	dijkstra_info[id_router].cost = 0;
     dijkstra(links_table, dijkstra_info, id_router); // algoritimo dijkstra recursivo
-	
-	for(int i = 0; i < N_ROT; i++)
-		define_path(dijkstra_info, i, i);
-	pathcost(links_table);
 
 	create_router(); //função que lê e cria os roteadores do arquivo roteadores.config
 	send_links();
