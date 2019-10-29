@@ -84,6 +84,10 @@ void read_links(int tab[N_ROT][N_ROT]){ //função que lê os enlaces
 			router_table.cost[i] = 100;
 			tab[id_router][i] = 100;
 		}
+		else{
+			router_table.cost[i] = 0;
+			tab[id_router][i] = 0;
+		}
 	}
 
 	FILE *file = fopen("enlaces.config", "r");
@@ -148,7 +152,7 @@ void create_router(){ //função que cria os sockets para os roteadores
 	printf("\t┣━━━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");
 	printf("\t┃     %02d      ┃  %6d   ┃  %32s  ┃\n", router[id_router].id,  router[id_router].port,  router[id_router].ip);
 	printf("\t┗━━━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
-	sleep(2);
+	sleep(5);
 
 	if((router_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 		die("\t Erro ao criar socket! ");
@@ -333,12 +337,11 @@ void *receiver(void *data){ //função da thread receiver
 				printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\t  ");
 				for(int i = 0; i < N_ROT; i++)
 					printf("%d ", message_in.tabela[i]);
-				printf("\n");
+				printf("\n");		
 				sleep(4);
 			}
 			else if(message_in.type = 2 && router[id_router].waiting_ack)
 				router[id_router].waiting_ack = FALSE;
-
 		}
 		else{
 			message_out = message_in;
@@ -350,6 +353,7 @@ void *receiver(void *data){ //função da thread receiver
 			send_message(next, message_out);
 		}
 	}
+	menu();
 }
 
 void print_dijkstra_line(mat_dijkstra dijkstra_info[], int indice){
