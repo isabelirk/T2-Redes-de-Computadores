@@ -4,7 +4,7 @@ Router router[N_ROT];
 Table router_table;
 
 pthread_t receiver_thread, sender_thread;
-int router_socket, id_router, qtd_message = 0, qtd_message_in = 0, max_cost = 100, links_table[N_ROT][N_ROT];
+int router_socket, id_router, qtd_message = 0, qtd_message_in = 0, max_cost = INFINITE, links_table[N_ROT][N_ROT];
 struct sockaddr_in si_me, si_other;
 
 void die(char *s){ //função que retorna os erros que aconteçam na execução e encerra
@@ -30,7 +30,7 @@ void print_dist(){
     printf("\t┃  Vértice Destino  ┃  Proximo vértice do Caminho  ┃   Custo   ┃\n");
     printf("\t┣━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━┫\n");
     for(int i = 0; i < N_ROT; i++){ 
-		if(router_table.cost[i] == 100)
+		if(router_table.cost[i] == INFINITE)
 			printf("\t┃         %d         ┃               -              ┃     ∞     ┃\n", i+1);
 		else
 			printf("\t┃         %d         ┃               %d              ┃ %5d     ┃\n", i+1, router_table.path[i]+1, router_table.cost[i]);
@@ -44,9 +44,9 @@ void read_links(int tab[N_ROT][N_ROT]){ //função que lê os enlaces
 	int x, y, cost;
 	for (int i = 0; i < N_ROT; i++){
 		if(i != id_router){
-			router_table.cost[i] = 100;
+			router_table.cost[i] = INFINITE;
 			router_table.path[i] = -1;
-			tab[id_router][i] = 100;
+			tab[id_router][i] = INFINITE;
 		}
 		else{
 			router_table.cost[i] = 0;
@@ -375,7 +375,10 @@ int main(int argc, char *argv[]){
 	pthread_create(&sender_thread, NULL, sender, NULL)	;
 
 	while(1){
-		sleep(500);
+		sleep(5);
+		for(int i = 0; i < N_ROT; i++){
+			if(router_table.cost[i] == i)
+		}
 		send_links();
 	}
 

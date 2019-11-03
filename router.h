@@ -1,13 +1,13 @@
-#include<stdio.h>
-#include<unistd.h>
-#include<string.h>
-#include<stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
 #include <stdio_ext.h>
-#include<arpa/inet.h>
-#include<sys/socket.h>
-#include<pthread.h>
+#include <semaphore.h>  
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <pthread.h>
 #include <sys/time.h>
-
 
 #define TIMEOUT_MAX 10    //tempo maximo timeout
 #define TIMEOUT_MS 100
@@ -16,7 +16,7 @@
 #define QUEUE_SIZE 100//tamanho da fila dos roteadores
 #define TRUE 1
 #define FALSE 0
-#define INF 999999
+#define INFINITE 999999
 
 typedef struct{       //estrutura do pacote
     int origin, dest, type;
@@ -35,4 +35,5 @@ typedef struct router{//estrutura do roteador
 typedef struct{       //Estrutura das tabelas de roteamentos
   int cost[N_ROT];    //custo
   int path[N_ROT];    //caminho
+  int conex[N_ROT];
 }Table;
