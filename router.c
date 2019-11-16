@@ -40,18 +40,18 @@ void print_dist(){
 }
 
 
-void read_links(int tab[N_ROT][N_ROT]){ //função que lê os enlaces
+void read_links(){ //função que lê os enlaces
 	int x, y, cost;
 	for (int i = 0; i < N_ROT; i++){
 		if(i != id_router){
 			router_table.cost[i] = INFINITE;
 			router_table.path[i] = -1;
-			tab[id_router][i] = INFINITE;
+			links_table[id_router][i] = INFINITE;
 		}
 		else{
 			router_table.cost[i] = 0;
 			router_table.path[i] = id_router;
-			tab[id_router][i] = 0;
+			links_table[id_router][i] = 0;
 		}
 	}
 
@@ -60,12 +60,12 @@ void read_links(int tab[N_ROT][N_ROT]){ //função que lê os enlaces
 	if (file){
 		for (int i = 0; fscanf(file, "%d %d %d", &x, &y, &cost) != EOF; i++){
 			if((x-1) == id_router){
-				tab[x-1][y-1] = cost;		
+				links_table[x-1][y-1] = cost;		
 				router_table.cost[y-1] = cost;
 				router_table.path[y-1] = y-1; 
 			}
 			else if((y-1) == id_router){
-				tab[y-1][x-1] = cost;
+				links_table[y-1][x-1] = cost;
 				router_table.cost[x-1] = cost;
 				router_table.path[x-1] = x-1; 
 			}	
@@ -81,8 +81,7 @@ void send_links(){
 	msg_out.origin = id_router;
 	msg_out.type = 0;
 
-	for(i = 0; i < N_ROT; i++)
-		msg_out.dist[i] = router_table.cost[i];
+	memcpy(msg_out.dist, links_table[id_router], sizeof(int)*N_ROT);
 
 	for(i = 0; i < N_ROT; i++){
 		if(i != id_router && router_table.path[i] == i){
@@ -105,12 +104,10 @@ void update_dist(int neigh_dist[], int neigh){
 	int ver = FALSE, link_cost = router_table.cost[neigh];
 	time_t clk = time(NULL);
 
-	for(int i = 0; i < N_ROT; i++){
-		links_table[neigh][i] = neigh_dist[i];
-	}
+	memcpy(links_table[neigh], neigh_dist, sizeof(int)*N_ROT);
 
 	for(int i = 0; i < N_ROT; i++){
-		if(router_table.cost[i] > neigh_dist[i]+link_cost && i != id_router){
+		if(links_table[id_router][i] > neigh_dist[i]+link_cost && i != id_router){
 			router_table.path[i] = neigh;
 			router_table.cost[i] = neigh_dist[i]+link_cost;
 			links_table[id_router][i] = neigh_dist[i]+link_cost;
@@ -363,7 +360,7 @@ int main(int argc, char *argv[]){
 
 	memset(links_table, -1, sizeof(int) * N_ROT * N_ROT); //limpa a tabela router
 
-	read_links(links_table); //função que lê do arquivo enlaces.config
+	read_links(); //função que lê do arquivo enlaces.config
 
 	create_router(); //função que lê e cria os roteadores do arquivo roteadores.config
 
@@ -374,13 +371,13 @@ int main(int argc, char *argv[]){
 	pthread_create(&receiver_thread, NULL, receiver, NULL); //terceiro parametro é a função que a thread ira rodar
 	pthread_create(&sender_thread, NULL, sender, NULL)	;
 
-	while(1){
-		sleep(5);
-		for(int i = 0; i < N_ROT; i++){
-			if(router_table.cost[i] == i)
-		}
-		send_links();
-	}
+	//while(1){
+	//	sleep(5);
+	//	for(int i = 0; i < N_ROT; i++){
+	//		if(router_table.cost[i] == i)
+	//	}
+	//	send_links();
+	//}
 
 	pthread_join(receiver_thread, NULL);
 	pthread_join(sender_thread, NULL);
