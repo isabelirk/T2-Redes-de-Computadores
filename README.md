@@ -1,4 +1,4 @@
-# T1 - Programação de Sockets UDP e Roteamento
+# T2 - Programação de Sockets UDP e Roteamento com o algoritmo Bellman-Ford
 
 Disciplina: Redes de Computadores
 
