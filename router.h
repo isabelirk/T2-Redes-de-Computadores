@@ -11,12 +11,13 @@
 
 #define TIMEOUT_MAX 10		//Quantidade Maxima de Reenvios
 #define TIMEOUT_MS 100		//Tempo timeout
-#define N_ROT 4				//número de roteadores
-#define MSG_SIZE 100		//tamanho da mensagem
-#define QUEUE_SIZE 100		//tamanho da fila dos roteadores
-#define TRUE 1
-#define FALSE 0
-#define INFINITE 999999
+#define N_ROT 4				//Número de roteadores
+#define MSG_SIZE 100		//Tamanho máximo da mensagem
+#define MAX_SIZE 256		//Tamanho máximo de Buffer
+#define QUEUE_SIZE 100		//Tamanho da fila dos roteadores
+#define TRUE 1				//Verdadeiro
+#define FALSE 0				//Falso
+#define INFINITE 999999		//Infinito
 
 typedef struct{				//Estrutura do Cabeçalho
 	int type;				//Tipo do pacote

@@ -1,18 +1,22 @@
 #include "router.h"
 
+pthread_t receiver_thread, sender_thread;
+struct sockaddr_in si_me, si_other;
+
 Router router[N_ROT];
 Table router_table;
 
-pthread_t receiver_thread, sender_thread;
-int router_socket, id_router, qtd_message = 0, qtd_message_in = 0, max_cost = INFINITE, links_table[N_ROT][N_ROT];
-struct sockaddr_in si_me, si_other;
+int router_socket, id_router;				//Configurações do roteador
+int pct_enum = 0, count_pct = 0;			//Controles de Pacotes
+int links_table[N_ROT][N_ROT];				//Tabela de Vetores Distancias
+Data_Packet pct_storage[QUEUE_SIZE];
 
-void die(char *s){ //função que retorna os erros que aconteçam na execução e encerra
+void die(char *s){ 			//função que retorna os erros que aconteçam na execução e encerra
 	perror(s);
 	exit(1);
 }
 
-void menu(){ //função menu
+void menu(){ 				//função menu
 	sleep(3);
 	printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
 	printf("\t┃                           Roteador %02d                        ┃\n", id_router+1);
@@ -38,7 +42,6 @@ void print_dist(){
     printf("\t┗━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━┛\n\n");
 	sleep(3);
 }
-
 
 void read_links(){ //função que lê os enlaces
 	int x, y, cost;
@@ -76,24 +79,23 @@ void read_links(){ //função que lê os enlaces
 
 void send_links(){
 	int i;
-	Package msg_out;
-	msg_out.num_pack = qtd_message;
-	msg_out.origin = id_router;
-	msg_out.type = 0;
+	Config_Packet message_out;
+	message_out.header.type = 0;
+	message_out.header.origin = id_router;
 
-	memcpy(msg_out.dist, links_table[id_router], sizeof(int)*N_ROT);
+	memcpy(message_out.dists_cost, links_table[id_router], sizeof(int)*N_ROT);
 
 	for(i = 0; i < N_ROT; i++){
 		if(i != id_router && router_table.path[i] == i){
-			msg_out.dest = i;
-			msg_out.num_pack = qtd_message;
-			qtd_message++; //atualiza a quantidade de mensagem que foram enviadas
+			message_out.header.num_pack = pct_enum;
+			message_out.header.dest = i;
+			pct_enum++; 								//atualiza a quantidade de mensagem que foram enviadas
 
 			si_other.sin_port = htons(router[i].port);
 			if(inet_aton(router[i].ip, &si_other.sin_addr) == 0)
 				die("\t Erro ao tentar encontrar o IP destino inet_aton() ");
 			else{
-				if(sendto(router_socket, &msg_out, sizeof(msg_out), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1)
+				if(sendto(router_socket, &message_out, sizeof(message_out), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1)
 				die("\t Erro ao enviar a mensagem! sendto() ");
 			}
 		}
@@ -156,20 +158,20 @@ void create_router(){ //função que cria os sockets para os roteadores
 }
 
 void show_messages(){
-	for(int i = 0; i < qtd_message_in; i++){
+	for(int i = 0; i < count_pct; i++){
 		printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
 		printf("\t┃      Historico de mensagens recebidas pelo roteador %02d        ┃\n", id_router+1);
 		printf("\t┣━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");    
 		printf("\t┃ ID Origem ┃ Nº MSG ┃                 Mensagem                 ┃\n");
 		printf("\t┗━━━━━━━━━━━┻━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
-		printf("\t      %d         %02d     %40s \n", router[id_router].msg_in[i].origin+1, router[id_router].msg_in[i].num_pack, router[id_router].msg_in[i].content);
+		printf("\t      %d         %02d     %40s \n", pct_storage[i].header.origin+1, pct_storage[i].header.num_pack, pct_storage[i].message);
 	}
 }
 
-void send_message(int next_id, Package msg_out){//função que enviar mensagem
+void send_message(int next_id, Data_Packet message){//função que enviar mensagem
 	int timeouts = 0;
 	printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
-	printf("\t┃ Enviando mensagem n°%02d para o roteador de ID %02d...           ┃\n", qtd_message, next_id+1);
+	printf("\t┃ Enviando mensagem n°%02d para o roteador de ID %02d...           ┃\n", message.header.num_pack, next_id+1);
 	printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
 	
 	si_other.sin_port = htons(router[next_id].port); //enviando para o socket
@@ -179,10 +181,10 @@ void send_message(int next_id, Package msg_out){//função que enviar mensagem
 
 	else{
 		do{
-			if(msg_out.origin == id_router)
+			if(message.header.origin == id_router)
 				router[id_router].waiting_ack = TRUE;
 			
-			if(sendto(router_socket, &msg_out, sizeof(msg_out), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1)
+			if(sendto(router_socket, &message, sizeof(message), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1)
 				die("\t Erro ao enviar a mensagem! sendto() ");
 
 			int cont = 1;
@@ -202,7 +204,7 @@ void send_message(int next_id, Package msg_out){//função que enviar mensagem
 			}
 		}while(timeouts < TIMEOUT_MAX && router[id_router].waiting_ack);
 
-		if(msg_out.origin == id_router){
+		if(message.header.origin == id_router){
 			if(!router[id_router].waiting_ack){
 				printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
 				printf("\t┃ ACK Confirmada! A mensagem foi recebida pelo destinatário... ┃\n");
@@ -220,11 +222,11 @@ void send_message(int next_id, Package msg_out){//função que enviar mensagem
 	}	
 }
 
-void create_message(){//função cria mensagem
-	int destination, next_id;
-	Package msg_out; 
+void create_message(){						//função cria mensagem
+	int destination;
+	Data_Packet message; 
 
-	do{ //verificação do roteador destino
+	do{ 									//verificação do roteador destino
 		printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
 		printf("\t┃ Digite o ID do roteador para enviar a mensagem...            ┃\n");
 		printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n\t ");
@@ -241,20 +243,17 @@ void create_message(){//função cria mensagem
 	printf("\t┃ Digite o conteudo da mensagem a ser enviada para o roteador: ┃\n");
 	printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n\t  ");
 
-	__fpurge(stdin); //limpar o buffer de algum lixo de memória
-	fgets(router[id_router].msg_out[qtd_message].content, MSG_SIZE, stdin);
+	__fpurge(stdin); 						//limpar o buffer de algum lixo de memória
+	fgets(message.message, MSG_SIZE, stdin);
 
-	router[id_router].msg_out[qtd_message].num_pack = qtd_message;
-	router[id_router].msg_out[qtd_message].origin = id_router;
-	router[id_router].msg_out[qtd_message].dest = destination;
-	router[id_router].msg_out[qtd_message].type = 1;
+	message.header.num_pack = pct_enum;
+	message.header.origin = id_router;
+	message.header.dest = destination;
+	message.header.type = 1;
 
-	next_id = router_table.path[destination]; //quem vai receber a mensagem
+	pct_enum++; 							//atualiza a quantidade de mensagem que foram enviadas
 
-	msg_out = router[id_router].msg_out[qtd_message];
-	qtd_message++; //atualiza a quantidade de mensagem que foram enviadas
-
-	send_message(next_id, msg_out);
+	send_message(router_table.path[destination], message);
 }
 
 void *sender(void *data){ //função da thread sender - transmissor
@@ -284,15 +283,14 @@ void *sender(void *data){ //função da thread sender - transmissor
 				break;
 		}
 	}
-}
-
 void *receiver(void *data){ //função da thread receiver
 	int slen = sizeof(si_other);
 	int next;
+	char buffer[MAX_SIZE];
 
 	while(1){
-		Package message_in;
-		Package message_out = router[id_router].msg_out[qtd_message];
+		Packet message_in;
+		Packet message_out = router[id_router].msg_out[pct_enum];
     
 		if((recvfrom(router_socket, &message_in, sizeof(message_in), 0, (struct sockaddr *) &si_me, &slen)) == -1)
 			die("\tErro ao receber mensagem! recvfrom() ");
@@ -304,12 +302,12 @@ void *receiver(void *data){ //função da thread receiver
 				printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");
 				printf("\t Mensagem: %50s \n", message_in.content);
 				
-				strcpy(router[id_router].msg_in[qtd_message_in].content, message_in.content);
-				router[id_router].msg_in[qtd_message_in].num_pack = message_in.num_pack;
-				router[id_router].msg_in[qtd_message_in].origin = message_in.origin;
-				qtd_message_in++;
+				strcpy(router[id_router].msg_in[count_pct].content, message_in.content);
+				router[id_router].msg_in[count_pct].num_pack = message_in.num_pack;
+				router[id_router].msg_in[count_pct].origin = message_in.origin;
+				count_pct++;
 
-				Package ack_reply;
+				Packet ack_reply;
 				ack_reply.origin = message_in.dest;
 				ack_reply.dest = message_in.origin;
 				ack_reply.type = 2;
