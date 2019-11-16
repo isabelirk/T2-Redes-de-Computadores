@@ -21,8 +21,8 @@
 
 typedef struct{				//Estrutura do Cabeçalho
 	int type;				//Tipo do pacote
-	int num_pack;			//número do pacote
 	int origin, dest;		//Origem e Destino
+	int num_pack;			//número do pacote
 }Packet_Header;
 
 typedef struct{				//Pacotes de Dados
@@ -32,7 +32,7 @@ typedef struct{				//Pacotes de Dados
 
 typedef struct{   			//Pacote de Configuração
 	Packet_Header header; 	//Cabeçalho
-	int dists_cost[N_ROT]; 	//Vetor Distancia
+	int dist_cost[N_ROT]; 	//Vetor Distancia
 }Config_Packet;
 
 typedef struct{   			//Pacote de Confirmação
