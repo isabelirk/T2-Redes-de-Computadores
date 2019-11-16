@@ -13,7 +13,6 @@
 #define TIMEOUT_MS 100		//Tempo timeout
 #define N_ROT 4				//Número de roteadores
 #define MSG_SIZE 100		//Tamanho máximo da mensagem
-#define MAX_SIZE 256		//Tamanho máximo de Buffer
 #define QUEUE_SIZE 100		//Tamanho da fila dos roteadores
 #define TRUE 1				//Verdadeiro
 #define FALSE 0				//Falso
