@@ -10,7 +10,7 @@
 #include <sys/time.h>
 
 #define TIMEOUT_MAX 10		//Quantidade Maxima de Reenvios
-#define TIMEOUT_MS 100		//Tempo timeout
+#define TIMEOUT_MS 1000		//Tempo timeout
 #define N_ROT 4				//Número de roteadores
 #define MSG_SIZE 100		//Tamanho máximo da mensagem
 #define QUEUE_SIZE 100		//Tamanho da fila dos roteadores
@@ -51,3 +51,9 @@ typedef struct{				//Estrutura da tabela de roteamento
 	int cost[N_ROT];		//Custo até o destino
 	int path[N_ROT];		//Próximo Salto
 }Table;
+
+typedef struct{
+	int dist_cost[N_ROT];	//Vetor distancia
+	int last_rec;			//Contagem de atualização
+	short is_neigh;			//bool para saber se é vizinho ou não
+}Links;

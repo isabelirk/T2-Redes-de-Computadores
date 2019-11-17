@@ -1,14 +1,15 @@
 #include "router.h"
 
-pthread_t receiver_thread, sender_thread;
+pthread_t receiver_thread, update_links_thread, sender_thread;
+pthread_mutex_t count_rec = PTHREAD_MUTEX_INITIALIZER;
 struct sockaddr_in si_me, si_other;
 
 Router router[N_ROT];
 Table router_table;
+Links links_table[N_ROT];
 
 int router_socket, id_router;				//Configurações do roteador
 int pct_enum = 1, count_pct = 0;			//Controles de Pacotes
-int links_table[N_ROT][N_ROT];				//Tabela de Vetores Distancias
 Data_Packet pct_storage[QUEUE_SIZE];
 
 void die(char *s){ 			//função que retorna os erros que aconteçam na execução e encerra
@@ -29,12 +30,23 @@ void menu(){ 				//função menu
 	printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
 }
 
+void show_messages(){
+	for(int i = 0; i < count_pct; i++){
+		printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
+		printf("\t┃      Historico de mensagens recebidas pelo roteador %02d        ┃\n", id_router+1);
+		printf("\t┣━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");    
+		printf("\t┃ ID Origem ┃ Nº MSG ┃                 Mensagem                 ┃\n");
+		printf("\t┗━━━━━━━━━━━┻━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
+		printf("\t      %d         %02d     %40s \n", pct_storage[i].header.origin+1, pct_storage[i].header.num_pack, pct_storage[i].message);
+	}
+}
+
 void print_dist(){
 	printf("\t┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓\n");
     printf("\t┃  Vértice Destino  ┃  Proximo vértice do Caminho  ┃   Custo   ┃\n");
     printf("\t┣━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━┫\n");
     for(int i = 0; i < N_ROT; i++){ 
-		if(router_table.cost[i] == INFINITE)
+		if(router_table.path[i] == -1)
 			printf("\t┃         %d         ┃               -              ┃     ∞     ┃\n", i+1);
 		else
 			printf("\t┃         %d         ┃               %d              ┃ %5d     ┃\n", i+1, router_table.path[i]+1, router_table.cost[i]);
@@ -43,32 +55,30 @@ void print_dist(){
 	sleep(3);
 }
 
+void clean_tables(){
+	memset(links_table, -1, sizeof(Links) * N_ROT); 	//limpa a tabela router
+	memset(router_table.path, -1, sizeof(int) * N_ROT);
+	for(int i = 0; i < N_ROT; i++)
+		links_table[id_router].dist_cost[i] = links_table[id_router].last_rec = INFINITE;
+
+	router_table.cost[id_router] = links_table[id_router].dist_cost[id_router] = links_table[id_router].last_rec = 0;
+	router_table.path[id_router] = id_router;
+}
+
 void read_links(){ //função que lê os enlaces
 	int x, y, cost;
-	for (int i = 0; i < N_ROT; i++){
-		if(i != id_router){
-			router_table.cost[i] = INFINITE;
-			router_table.path[i] = -1;
-			links_table[id_router][i] = INFINITE;
-		}
-		else{
-			router_table.cost[i] = 0;
-			router_table.path[i] = id_router;
-			links_table[id_router][i] = 0;
-		}
-	}
-
+	
 	FILE *file = fopen("enlaces.config", "r");
 
 	if (file){
 		for (int i = 0; fscanf(file, "%d %d %d", &x, &y, &cost) != EOF; i++){
 			if((x-1) == id_router){
-				links_table[x-1][y-1] = cost;		
+				links_table[x-1].dist_cost[y-1] = cost;		
 				router_table.cost[y-1] = cost;
 				router_table.path[y-1] = y-1; 
 			}
 			else if((y-1) == id_router){
-				links_table[y-1][x-1] = cost;
+				links_table[y-1].dist_cost[x-1] = cost;
 				router_table.cost[x-1] = cost;
 				router_table.path[x-1] = x-1; 
 			}	
@@ -83,7 +93,7 @@ void send_links(){
 	message_out.header.type = 0;
 	message_out.header.origin = id_router;
 
-	memcpy(message_out.dist_cost, links_table[id_router], sizeof(int)*N_ROT);
+	memcpy(message_out.dist_cost, links_table[id_router].dist_cost, sizeof(int)*N_ROT);
 
 	for(i = 0; i < N_ROT; i++){
 		if(i != id_router && router_table.path[i] == i){
@@ -102,17 +112,24 @@ void send_links(){
 	}
 }
 
-void update_dist(int neigh_dist[], int neigh){
-	int ver = FALSE, link_cost = router_table.cost[neigh];
+void update_dist(Config_Packet message_in){
+	int neigh = message_in.header.origin, neigh_dist[N_ROT];
+	memcpy(neigh_dist, message_in.dist_cost, sizeof(int) * N_ROT);
+	
+	int ver = FALSE, link_cost = links_table[id_router].dist_cost[neigh];
 	time_t clk = time(NULL);
 
-	memcpy(links_table[neigh], neigh_dist, sizeof(int)*N_ROT);
+	memcpy(links_table[neigh].dist_cost, neigh_dist, sizeof(int)*N_ROT);
+
+	pthread_mutex_lock(&count_rec);
+	links_table[neigh].last_rec = 0;
+	pthread_mutex_unlock(&count_rec);
 
 	for(int i = 0; i < N_ROT; i++){
-		if(links_table[id_router][i] > neigh_dist[i]+link_cost && i != id_router){
+		if(links_table[id_router].dist_cost[i] > neigh_dist[i]+link_cost && i != id_router){
 			router_table.path[i] = neigh;
 			router_table.cost[i] = neigh_dist[i]+link_cost;
-			links_table[id_router][i] = neigh_dist[i]+link_cost;
+			links_table[id_router].dist_cost[i] = neigh_dist[i]+link_cost;
 			clk = time(NULL);
 			ver = TRUE;
 		}
@@ -127,6 +144,10 @@ void update_dist(int neigh_dist[], int neigh){
 }
 
 void create_router(){ //função que cria os sockets para os roteadores
+	memset((char *) &si_other, 0, sizeof(si_other));
+	si_other.sin_family = AF_INET;
+	si_other.sin_addr.s_addr =  htonl(INADDR_ANY);
+	
 	FILE *config_file = fopen("roteadores.config", "r");
 
 	if(!config_file)
@@ -157,17 +178,6 @@ void create_router(){ //função que cria os sockets para os roteadores
 		die("\t Erro ao conectar o socket a porta! ");
 }
 
-void show_messages(){
-	for(int i = 0; i < count_pct; i++){
-		printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
-		printf("\t┃      Historico de mensagens recebidas pelo roteador %02d        ┃\n", id_router+1);
-		printf("\t┣━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");    
-		printf("\t┃ ID Origem ┃ Nº MSG ┃                 Mensagem                 ┃\n");
-		printf("\t┗━━━━━━━━━━━┻━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
-		printf("\t      %d         %02d     %40s \n", pct_storage[i].header.origin+1, pct_storage[i].header.num_pack, pct_storage[i].message);
-	}
-}
-
 void send_message(Data_Packet message_out){//função que enviar mensagem
 	int timeouts = 0;
 	int next = router_table.path[message_out.header.dest];
@@ -194,7 +204,7 @@ void send_message(Data_Packet message_out){//função que enviar mensagem
 				if(!router[id_router].waiting_ack)
 					break;
 				else
-					usleep(20000);
+					usleep(10000);
 			}
 
 			if(router[id_router].waiting_ack){
@@ -218,8 +228,6 @@ void send_message(Data_Packet message_out){//função que enviar mensagem
 				printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
 			}
 		}
-		sleep(6);
-		menu();
 	}	
 }
 
@@ -257,33 +265,22 @@ void create_message(){						//função cria mensagem
 	send_message(message_out);
 }
 
-void *sender(void *data){ //função da thread sender - transmissor
-	int op;
-	
-	memset((char *) &si_other, 0, sizeof(si_other));
-	si_other.sin_family = AF_INET;
-	si_other.sin_addr.s_addr =  htonl(INADDR_ANY);
+void *update_links(void *data){
+	int count = 0;
 
 	while(1){
-		menu();
-		scanf("%d", &op);
-		switch(op){
-			case 0: //sair
-				exit(0);
-				break;
-			case 1: //enviar mensagem
-				create_message();
-				break;
-			case 2: //ver mensagens anteriores
-				show_messages();
-				break;
-			default:
-				printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
-				printf("\t┃ Opção inválida, digite novamete.. ┃\n");
-				printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n\t  ");
-				break;
-		}
+		sleep(5);
+		for(int i = 0; i < N_ROT; i++)
+			if(i != id_router){
+				pthread_mutex_lock(&count_rec);
+				links_table[i].last_rec++;
+				pthread_mutex_unlock(&count_rec);
+				printf("Esperando receber %d %d\n", i, links_table[i].last_rec);
+			}
+		send_links();
 	}
+
+
 }
 
 void *receiver(void *data){ //função da thread receiver
@@ -298,8 +295,6 @@ void *receiver(void *data){ //função da thread receiver
 		pct_type = *(int *) buffer;
 		pct_dest = ((Data_Packet *) buffer)->header.dest; 
 		
-		printf("toma ai otario %d\n", pct_dest);
-
 		if(pct_dest == id_router){
 			if(pct_type == 0){
 				Config_Packet message_in = *(Config_Packet *)buffer;
@@ -309,7 +304,7 @@ void *receiver(void *data){ //função da thread receiver
 				for(int i = 0; i < N_ROT; i++)
 					printf("%d ", message_in.dist_cost[i]);
 				printf("\n");
-				update_dist(message_in.dist_cost, message_in.header.origin);
+				update_dist(message_in);
 		 		sleep(4);
 			}
 			else if(pct_type == 1){
@@ -329,7 +324,7 @@ void *receiver(void *data){ //função da thread receiver
 				ack_reply.header.num_pack = pct_enum;
 				pct_enum++;
 
-				si_other.sin_port = htons(router[ack_reply.header.dest].port); //enviando para o socket
+				si_other.sin_port = htons(router[ack_reply.header.dest].port); 
 
 				if(sendto(router_socket, &ack_reply, sizeof(Ack_Packet), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1)
 					die("\tErro ao enviar a mensagem de ack! sendto() ");
@@ -352,43 +347,54 @@ void *receiver(void *data){ //função da thread receiver
 	}
 }
 
-int main(int argc, char *argv[]){
+void *main(){
+	do{ 									//verificação do roteador destino
+		printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
+		printf("\t┃ Digite o ID do roteador que deseja iniciar...                ┃\n");
+		printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n\t ");
+		scanf("%d", &id_router);
+		id_router = id_router - 1;
+		if(id_router < 0 || id_router >= N_ROT){
+			printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
+			printf("\t┃ O ID informado é inválido. Por favor digite novamente...     ┃\n");
+			printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n\t ");
+		}
+	}while(id_router < 0 || id_router >= N_ROT);
 
-	//faz uma comparação com o que veio de parametro no comando executável
-	if(argc < 2)
-		die("\tDigite o ID do roteador! ");
-	else if(argc > 2)		
-		die("\tDigite apenas um ID para o roteador! ");
+	clean_tables();														//função que limpa as tabelas de lixo
 
-	id_router = strtol(argv[1], NULL, 10) - 1; //função de casting do argv id para int 
-	
-	if(id_router >= N_ROT)
-		die("\tID do roteador inválido! ");
+	read_links(); 														//função que lê do arquivo enlaces.config
 
-	memset(links_table, -1, sizeof(int) * N_ROT * N_ROT); //limpa a tabela router
+	create_router(); 													//função que lê e cria os roteadores do arquivo roteadores.config
 
-	read_links(); //função que lê do arquivo enlaces.config
+	print_dist();														//função que mostra os caminhos e o custo pra os destinos
 
-	create_router(); //função que lê e cria os roteadores do arquivo roteadores.config
+	send_links();														//envia vetor distancia pela primeira vez
 
-	print_dist();
+	pthread_create(&receiver_thread, NULL, receiver, NULL); 			//cria thread do receiver, que irá escutar na porta determinada
 
-	send_links();
+	pthread_create(&update_links_thread, NULL, update_links, NULL);		//cria thread do update_links, que enviará e verificará esporadicamente os vetores distancia
 
-	pthread_create(&receiver_thread, NULL, receiver, NULL); //terceiro parametro é a função que a thread ira rodar
-	pthread_create(&sender_thread, NULL, sender, NULL)	;
-
-	//while(1){
-	//	sleep(5);
-	//	for(int i = 0; i < N_ROT; i++){
-	//		if(router_table.cost[i] == i)
-	//	}
-	//	send_links();
-	//}
-
-	pthread_join(receiver_thread, NULL);
-	pthread_join(sender_thread, NULL);
-
-	return 0;
+	while(1){ 															//thread main, aproveitada para ser sender
+		int op;
+		menu();
+		scanf("%d", &op);
+		switch(op){
+			case 0:					//sair
+				exit(0);
+				break;
+			case 1: 				//enviar mensagem
+				create_message();
+				break;
+			case 2: 				//ver mensagens anteriores
+				show_messages();
+				break;
+			default:				//mensagem de erro
+				printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
+				printf("\t┃ Opção inválida, digite novamente..┃\n");
+				printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n\t  ");
+				break;
+		}
+	}
 }
     
