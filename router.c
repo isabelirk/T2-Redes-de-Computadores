@@ -58,8 +58,10 @@ void print_dist(){
 void clean_tables(){
 	memset(links_table, -1, sizeof(Links) * N_ROT); 	//limpa a tabela router
 	memset(router_table.path, -1, sizeof(int) * N_ROT);
-	for(int i = 0; i < N_ROT; i++)
-		links_table[id_router].dist_cost[i] = links_table[id_router].last_rec = INFINITE;
+	for(int i = 0; i < N_ROT; i++){
+		links_table[id_router].dist_cost[i] = links_table[i].last_rec = INFINITE;
+		links_table[i].is_neigh = FALSE;
+	}
 
 	router_table.cost[id_router] = links_table[id_router].dist_cost[id_router] = links_table[id_router].last_rec = 0;
 	router_table.path[id_router] = id_router;
@@ -73,12 +75,14 @@ void read_links(){ //função que lê os enlaces
 	if (file){
 		for (int i = 0; fscanf(file, "%d %d %d", &x, &y, &cost) != EOF; i++){
 			if((x-1) == id_router){
-				links_table[x-1].dist_cost[y-1] = cost;		
+				links_table[x-1].dist_cost[y-1] = cost;
+				links_table[y-1].is_neigh = TRUE;		
 				router_table.cost[y-1] = cost;
 				router_table.path[y-1] = y-1; 
 			}
 			else if((y-1) == id_router){
 				links_table[y-1].dist_cost[x-1] = cost;
+				links_table[x-1].is_neigh = TRUE;		
 				router_table.cost[x-1] = cost;
 				router_table.path[x-1] = x-1; 
 			}	
@@ -96,7 +100,7 @@ void send_links(){
 	memcpy(message_out.dist_cost, links_table[id_router].dist_cost, sizeof(int)*N_ROT);
 
 	for(i = 0; i < N_ROT; i++){
-		if(i != id_router && router_table.path[i] == i){
+		if(links_table[i].is_neigh){
 			message_out.header.num_pack = pct_enum;
 			message_out.header.dest = i;
 			pct_enum++; 								//atualiza a quantidade de mensagem que foram enviadas
@@ -115,15 +119,11 @@ void send_links(){
 void update_dist(Config_Packet message_in){
 	int neigh = message_in.header.origin, neigh_dist[N_ROT];
 	memcpy(neigh_dist, message_in.dist_cost, sizeof(int) * N_ROT);
-	
+
 	int ver = FALSE, link_cost = links_table[id_router].dist_cost[neigh];
 	time_t clk = time(NULL);
 
 	memcpy(links_table[neigh].dist_cost, neigh_dist, sizeof(int)*N_ROT);
-
-	pthread_mutex_lock(&count_rec);
-	links_table[neigh].last_rec = 0;
-	pthread_mutex_unlock(&count_rec);
 
 	for(int i = 0; i < N_ROT; i++){
 		if(links_table[id_router].dist_cost[i] > neigh_dist[i]+link_cost && i != id_router){
@@ -266,21 +266,24 @@ void create_message(){						//função cria mensagem
 }
 
 void *update_links(void *data){
-	int count = 0;
+	sleep(5);
 
 	while(1){
-		sleep(5);
-		for(int i = 0; i < N_ROT; i++)
-			if(i != id_router){
+		sleep(20);
+		send_links();
+		for(int i = 0; i < N_ROT; i++){
+			if(links_table[i].is_neigh){
+				printf("Esperando receber %d %d\n", i+1, links_table[i].last_rec);
+
 				pthread_mutex_lock(&count_rec);
 				links_table[i].last_rec++;
 				pthread_mutex_unlock(&count_rec);
-				printf("Esperando receber %d %d\n", i, links_table[i].last_rec);
+
+				if(links_table[i].last_rec == CONEX_LIMIT) 
+
 			}
-		send_links();
+		}
 	}
-
-
 }
 
 void *receiver(void *data){ //função da thread receiver
@@ -301,6 +304,11 @@ void *receiver(void *data){ //função da thread receiver
 				printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
 				printf("\t┃ Vetor Distancia - MSG Nº %02d recebido do roteador com ID %02d...┃\n", message_in.header.num_pack, message_in.header.origin+1);
 				printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\t  ");
+				
+				pthread_mutex_lock(&count_rec);
+				links_table[message_in.header.origin].last_rec = 0;
+				pthread_mutex_unlock(&count_rec);
+
 				for(int i = 0; i < N_ROT; i++)
 					printf("%d ", message_in.dist_cost[i]);
 				printf("\n");
