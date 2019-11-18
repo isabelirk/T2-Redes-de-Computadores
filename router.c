@@ -48,7 +48,7 @@ void print_dist(){
     for(int i = 0; i < N_ROT; i++){ 
 		if(i == id_router)
 			continue;
-		if(router_table.path[i] == -1)
+		if(router_table.path[i] == ERROR)
 			printf("\t┃         %d         ┃               -              ┃     ∞     ┃\n", i+1);
 		else
 			printf("\t┃         %d         ┃               %d              ┃ %5d     ┃\n", i+1, router_table.path[i]+1, router_table.cost[i]);
@@ -58,8 +58,8 @@ void print_dist(){
 }
 
 void clean_tables(){
-	memset(links_table, -1, sizeof(Links) * N_ROT); 	//limpa a tabela router
-	memset(router_table.path, -1, sizeof(int) * N_ROT);
+	memset(links_table, ERROR, sizeof(Links) * N_ROT); 	//limpa a tabela router
+	memset(router_table.path, ERROR, sizeof(int) * N_ROT);
 	for(int i = 0; i < N_ROT; i++){
 		links_table[i].last_rec = INFINITE;
 		for(int j = 0; j < N_ROT; j++){
@@ -83,12 +83,14 @@ void read_links(){ //função que lê os enlaces
 				links_table[x-1].dist_cost[y-1] = cost;
 				links_table[y-1].is_neigh = TRUE;		
 				router_table.cost[y-1] = cost;
+				links_table[x-1].dist_path[y-1] = y-1; 
 				router_table.path[y-1] = y-1; 
 			}
 			else if((y-1) == id_router){
 				links_table[y-1].dist_cost[x-1] = cost;
 				links_table[x-1].is_neigh = TRUE;		
 				router_table.cost[x-1] = cost;
+				links_table[y-1].dist_path[x-1] = x-1; 
 				router_table.path[x-1] = x-1; 
 			}	
 		}
@@ -106,7 +108,7 @@ void send_links(){
 
 	printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
 	printf("\t┃ Enviando meu vetor distancia                                 ┃\n");
-	printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\t  ");
+	printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");
 
 	for(i = 0; i < N_ROT; i++){
 		if(links_table[i].is_neigh){
@@ -118,7 +120,7 @@ void send_links(){
 			if(inet_aton(router[i].ip, &si_other.sin_addr) == 0)
 				die("\t Erro ao tentar encontrar o IP destino inet_aton() ");
 			else{
-				if(sendto(router_socket, &message_out, sizeof(Config_Packet), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1)
+				if(sendto(router_socket, &message_out, sizeof(Config_Packet), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == ERROR)
 				die("\t Erro ao enviar a mensagem! sendto() ");
 			}
 		}
@@ -135,10 +137,11 @@ void update_dist(){
 			continue;
 		for(int j = 0; j < N_ROT; j++){
 			link_cost = links_table[id_router].dist_cost[i];
-			if(links_table[id_router].dist_cost[j] > links_table[i].dist_cost[j] + link_cost){
-				pthread_mutex_lock(&update_links_table);
+			if(links_table)
+			if((links_table[id_router].dist_cost[j] > links_table[i].dist_cost[j] + link_cost)){
+				//pthread_mutex_lock(&update_links_table);
 				links_table[id_router].dist_cost[j] = links_table[i].dist_cost[j] + link_cost;
-				pthread_mutex_unlock(&update_links_table);
+				//pthread_mutex_unlock(&update_links_table);
 				router_table.path[j] = i;
 				router_table.cost[j] = links_table[i].dist_cost[j] + link_cost;
 				clk = time(NULL);
@@ -179,7 +182,7 @@ void create_router(){ //função que cria os sockets para os roteadores
 	printf("\t┗━━━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
 	sleep(2);
 
-	if((router_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+	if((router_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == ERROR)
 		die("\t Erro ao criar socket! ");
 
 	memset((char *) &si_me, 0, sizeof(si_me));
@@ -188,7 +191,7 @@ void create_router(){ //função que cria os sockets para os roteadores
 	si_me.sin_port = htons(router[id_router].port);
 	si_me.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	if(bind(router_socket, (struct sockaddr *) &si_me, sizeof(si_me)) == -1)
+	if(bind(router_socket, (struct sockaddr *) &si_me, sizeof(si_me)) == ERROR)
 		die("\t Erro ao conectar o socket a porta! ");
 }
 
@@ -209,7 +212,7 @@ void send_message(Data_Packet message_out){//função que enviar mensagem
 			if(message_out.header.origin == id_router)
 				router[id_router].waiting_ack = TRUE;
 			
-			if(sendto(router_socket, &message_out, sizeof(Data_Packet), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1)
+			if(sendto(router_socket, &message_out, sizeof(Data_Packet), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == ERROR)
 				die("\t Erro ao enviar a mensagem! sendto() ");
 
 			int cont = 1;
@@ -286,21 +289,26 @@ void *update_links(void *data){
 		sleep(10);
 		for(int i = 0; i < N_ROT; i++){
 			if(links_table[i].is_neigh){
-				pthread_mutex_lock(&update_links_table);
+				//pthread_mutex_lock(&update_links_table);
 				links_table[i].last_rec++;
-				//printf("Esperando receber %d %d\n", i+1, links_table[i].last_rec);
+				printf("Esperando receber %d %d\n", i+1, links_table[i].last_rec);
 
 				if(links_table[i].last_rec == CONEX_LIMIT){
 					links_table[id_router].dist_cost[i] = INFINITE;
 					links_table[i].is_neigh = FALSE;
-					pthread_mutex_unlock(&update_links_table);
-					router_table.path[i] = -1;
-					router_table.cost[i] = INFINITE;
+					for(int j = 0; j < N_ROT; j++){
+						if(links_table[id_router].dist_path[j] == i){
+							links_table[id_router].dist_cost[j] = INFINITE;
+							links_table[id_router].dist_path[j] = ERROR;
+						}
+					}
+
+					//pthread_mutex_unlock(&update_links_table);
 					update_dist();
 	
 				}
 				else{
-					pthread_mutex_unlock(&update_links_table);
+					//pthread_mutex_unlock(&update_links_table);
 					send_links();
 				}
 			}
@@ -314,7 +322,7 @@ void *receiver(void *data){ //função da thread receiver
 	char buffer[sizeof(Data_Packet)];
 
 	while(1){
-		if((recvfrom(router_socket, &buffer, sizeof(buffer), 0, (struct sockaddr *) &si_me, &slen)) == -1)
+		if((recvfrom(router_socket, &buffer, sizeof(buffer), 0, (struct sockaddr *) &si_me, &slen)) == ERROR)
 			die("\tErro ao receber mensagem! recvfrom() ");
 
 		pct_type = *(int *) buffer;
@@ -327,14 +335,14 @@ void *receiver(void *data){ //função da thread receiver
 				printf("\t┃ Vetor Distancia - MSG Nº %02d recebido do roteador com ID %02d...┃\n", message_in.header.num_pack, message_in.header.origin+1);
 				printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\t  ");
 				
-				pthread_mutex_lock(&update_links_table);
+				//pthread_mutex_lock(&update_links_table);
 				links_table[message_in.header.origin].last_rec = 0;
 				memcpy(links_table[message_in.header.origin].dist_cost, message_in.dist_cost, sizeof(int)*N_ROT);
 
 				for(int i = 0; i < N_ROT; i++)
 					printf(message_in.dist_cost[i] == INFINITE ? "∞ " : "%d ", message_in.dist_cost[i]);
 				printf("\n");
-				pthread_mutex_unlock(&update_links_table);
+				//pthread_mutex_unlock(&update_links_table);
 				update_dist();
 			}
 			else if(pct_type == 1){
@@ -356,7 +364,7 @@ void *receiver(void *data){ //função da thread receiver
 
 				si_other.sin_port = htons(router[ack_reply.header.dest].port); 
 
-				if(sendto(router_socket, &ack_reply, sizeof(Ack_Packet), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1)
+				if(sendto(router_socket, &ack_reply, sizeof(Ack_Packet), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == ERROR)
 					die("\tErro ao enviar a mensagem de ack! sendto() ");
 			}
 			else if(pct_type == 2){

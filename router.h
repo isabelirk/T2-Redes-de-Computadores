@@ -17,6 +17,7 @@
 #define QUEUE_SIZE 100		//Tamanho da fila dos roteadores
 #define TRUE 1				//Verdadeiro
 #define FALSE 0				//Falso
+#define ERROR -1			//Estado de Erro
 #define INFINITE 999999		//Infinito
 
 typedef struct{				//Estrutura do Cabeçalho
@@ -55,6 +56,7 @@ typedef struct{				//Estrutura da tabela de roteamento
 
 typedef struct{
 	int dist_cost[N_ROT];	//Vetor distancia
+	int dist_path[N_ROT];	//Vetor caminho
 	int last_rec;			//Contagem de atualização
 	short is_neigh;			//bool para saber se é vizinho ou não
 }Links;
