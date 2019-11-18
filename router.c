@@ -46,8 +46,8 @@ void print_dist(){
     printf("\t┃  Vértice Destino  ┃  Proximo vértice do Caminho  ┃   Custo   ┃\n");
     printf("\t┣━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━┫\n");
     for(int i = 0; i < N_ROT; i++){ 
-		if(i == id_router)
-			continue;
+		// if(i == id_router)
+		// 	continue;
 		if(router_table.path[i] == ERROR)
 			printf("\t┃         %d         ┃               -              ┃     ∞     ┃\n", i+1);
 		else
@@ -105,6 +105,7 @@ void send_links(){
 	message_out.header.origin = id_router;
 
 	memcpy(message_out.dist_cost, links_table[id_router].dist_cost, sizeof(int)*N_ROT);
+	memcpy(message_out.dist_path, links_table[id_router].dist_path, sizeof(int)*N_ROT);
 
 	printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
 	printf("\t┃ Enviando meu vetor distancia                                 ┃\n");
@@ -139,9 +140,9 @@ void update_dist(){
 			link_cost = links_table[id_router].dist_cost[i];
 			if(links_table)
 			if((links_table[id_router].dist_cost[j] > links_table[i].dist_cost[j] + link_cost)){
-				//pthread_mutex_lock(&update_links_table);
+				pthread_mutex_lock(&update_links_table);
 				links_table[id_router].dist_cost[j] = links_table[i].dist_cost[j] + link_cost;
-				//pthread_mutex_unlock(&update_links_table);
+				pthread_mutex_unlock(&update_links_table);
 				router_table.path[j] = i;
 				router_table.cost[j] = links_table[i].dist_cost[j] + link_cost;
 				clk = time(NULL);
@@ -289,7 +290,7 @@ void *update_links(void *data){
 		sleep(10);
 		for(int i = 0; i < N_ROT; i++){
 			if(links_table[i].is_neigh){
-				//pthread_mutex_lock(&update_links_table);
+				pthread_mutex_lock(&update_links_table);
 				links_table[i].last_rec++;
 				printf("Esperando receber %d %d\n", i+1, links_table[i].last_rec);
 
@@ -303,12 +304,12 @@ void *update_links(void *data){
 						}
 					}
 
-					//pthread_mutex_unlock(&update_links_table);
+					pthread_mutex_unlock(&update_links_table);
 					update_dist();
 	
 				}
 				else{
-					//pthread_mutex_unlock(&update_links_table);
+					pthread_mutex_unlock(&update_links_table);
 					send_links();
 				}
 			}
@@ -335,14 +336,16 @@ void *receiver(void *data){ //função da thread receiver
 				printf("\t┃ Vetor Distancia - MSG Nº %02d recebido do roteador com ID %02d...┃\n", message_in.header.num_pack, message_in.header.origin+1);
 				printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\t  ");
 				
-				//pthread_mutex_lock(&update_links_table);
+				pthread_mutex_lock(&update_links_table);
 				links_table[message_in.header.origin].last_rec = 0;
+				links_table[message_in.header.origin].is_neigh = TRUE;
 				memcpy(links_table[message_in.header.origin].dist_cost, message_in.dist_cost, sizeof(int)*N_ROT);
+				memcpy(links_table[message_in.header.origin].dist_path, message_in.dist_path, sizeof(int)*N_ROT);
 
 				for(int i = 0; i < N_ROT; i++)
 					printf(message_in.dist_cost[i] == INFINITE ? "∞ " : "%d ", message_in.dist_cost[i]);
 				printf("\n");
-				//pthread_mutex_unlock(&update_links_table);
+				pthread_mutex_unlock(&update_links_table);
 				update_dist();
 			}
 			else if(pct_type == 1){

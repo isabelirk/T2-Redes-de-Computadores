@@ -34,6 +34,7 @@ typedef struct{				//Pacotes de Dados
 typedef struct{   			//Pacote de Configuração
 	Packet_Header header; 	//Cabeçalho
 	int dist_cost[N_ROT]; 	//Vetor Distancia
+	int dist_path[N_ROT];
 }Config_Packet;
 
 typedef struct{   			//Pacote de Confirmação
@@ -58,5 +59,6 @@ typedef struct{
 	int dist_cost[N_ROT];	//Vetor distancia
 	int dist_path[N_ROT];	//Vetor caminho
 	int last_rec;			//Contagem de atualização
+	int link_cost;			//custo do enlace para o vizinho
 	short is_neigh;			//bool para saber se é vizinho ou não
 }Links;
