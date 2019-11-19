@@ -1,6 +1,6 @@
-# T2 - Programação de Sockets UDP e Roteamento com o algoritmo Bellman-Ford
+# T2 - Programação de Sockets UDP e Roteamento com o algoritmo Bellman-Ford Distribuido
 
-Disciplina: Redes de Computadores
+Disciplina: Redes de Computadores - 2019/2
 
 Autores: **Isabeli Reik** e **Matheus Negrão**
 
@@ -11,5 +11,11 @@ gcc -pthread router.c -o router
 ```
 
 ```
-./router *número_do_roteador*
+./router
+```
+
+Com o programa em execução digite o número do roteador que deseja iniciar.
+
+```
+1
 ```
