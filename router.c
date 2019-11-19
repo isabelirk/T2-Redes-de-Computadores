@@ -12,12 +12,12 @@ int router_socket, id_router;				//Configurações do roteador
 int pct_enum = 1, count_pct = 0;			//Controles de Pacotes
 Data_Packet pct_storage[QUEUE_SIZE];
 
-void die(char *s){ 			//função que retorna os erros que aconteçam na execução e encerra
+void die(char *s){
 	perror(s);
 	exit(1);
 }
 
-void menu(){ 				//função menu
+void menu(){
 	sleep(3);
 	printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
 	printf("\t┃                           Roteador %02d                        ┃\n", id_router+1);
@@ -61,7 +61,7 @@ void clean_tables(){
 	memset(links_table, ERROR, sizeof(Links) * N_ROT); 	//limpa a tabela router
 	memset(router_table.path, ERROR, sizeof(int) * N_ROT);
 	for(int i = 0; i < N_ROT; i++){
-		links_table[i].last_rec = INFINITE;
+		links_table[i].link_cost = INFINITE;
 		for(int j = 0; j < N_ROT; j++){
 			links_table[i].dist_cost[j] = INFINITE;
 		}
@@ -72,6 +72,41 @@ void clean_tables(){
 	router_table.path[id_router] = id_router;
 }
 
+void create_router(){ //função que cria os sockets para os roteadores
+	memset((char *) &si_other, 0, sizeof(si_other));
+	si_other.sin_family = AF_INET;
+	si_other.sin_addr.s_addr =  htonl(INADDR_ANY);
+	
+	FILE *config_file = fopen("roteadores.config", "r");
+
+	if(!config_file)
+		die("\t Não foi possivel abrir o arquvio de configuração dos roteadores! ");
+
+	for (int i = 0; fscanf(config_file, "%d %d %s", &router[i].id, &router[i].port, router[i].ip) != EOF; i++);
+	fclose(config_file);
+
+	printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
+	printf("\t┃                  Informações do Roteador %02d                  ┃\n", id_router+1);
+	printf("\t┣━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");    
+	printf("\t┃ ID Roteador ┃   Porta   ┃           Endereço de IP           ┃\n");
+	printf("\t┣━━━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");
+	printf("\t┃     %02d      ┃  %6d   ┃  %32s  ┃\n", router[id_router].id,  router[id_router].port,  router[id_router].ip);
+	printf("\t┗━━━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
+	sleep(2);
+
+	if((router_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == ERROR)
+		die("\t Erro ao criar socket! ");
+
+	memset((char *) &si_me, 0, sizeof(si_me));
+	
+	si_me.sin_family = AF_INET;
+	si_me.sin_port = htons(router[id_router].port);
+	si_me.sin_addr.s_addr = htonl(INADDR_ANY);
+
+	if(bind(router_socket, (struct sockaddr *) &si_me, sizeof(si_me)) == ERROR)
+		die("\t Erro ao conectar o socket a porta! ");
+}
+
 void read_links(){ //função que lê os enlaces
 	int x, y, cost;
 	
@@ -80,17 +115,19 @@ void read_links(){ //função que lê os enlaces
 	if (file){
 		for (int i = 0; fscanf(file, "%d %d %d", &x, &y, &cost) != EOF; i++){
 			if((x-1) == id_router){
-				links_table[x-1].dist_cost[y-1] = cost;
 				links_table[y-1].is_neigh = TRUE;		
-				router_table.cost[y-1] = cost;
+				links_table[y-1].link_cost = cost;
+				links_table[x-1].dist_cost[y-1] = cost;
 				links_table[x-1].dist_path[y-1] = y-1; 
+				router_table.cost[y-1] = cost;
 				router_table.path[y-1] = y-1; 
 			}
 			else if((y-1) == id_router){
-				links_table[y-1].dist_cost[x-1] = cost;
 				links_table[x-1].is_neigh = TRUE;		
-				router_table.cost[x-1] = cost;
+				links_table[x-1].link_cost = cost;		
+				links_table[y-1].dist_cost[x-1] = cost;
 				links_table[y-1].dist_path[x-1] = x-1; 
+				router_table.cost[x-1] = cost;
 				router_table.path[x-1] = x-1; 
 			}	
 		}
@@ -137,7 +174,7 @@ void update_dist(){
 		if(!links_table[i].is_neigh)
 			continue;
 		for(int j = 0; j < N_ROT; j++){
-			link_cost = links_table[id_router].dist_cost[i];
+			link_cost = links_table[i].link_cost;
 			if(links_table)
 			if((links_table[id_router].dist_cost[j] > links_table[i].dist_cost[j] + link_cost)){
 				pthread_mutex_lock(&update_links_table);
@@ -161,40 +198,41 @@ void update_dist(){
 	}
 }
 
-void create_router(){ //função que cria os sockets para os roteadores
-	memset((char *) &si_other, 0, sizeof(si_other));
-	si_other.sin_family = AF_INET;
-	si_other.sin_addr.s_addr =  htonl(INADDR_ANY);
+void *update_links(void *data){
+	sleep(50);
+
+	while(1){
+		sleep(10);
+		for(int i = 0; i < N_ROT; i++){
+			if(links_table[i].is_neigh){
+				pthread_mutex_lock(&update_links_table);
+				links_table[i].last_rec++;
+				printf("\tEsperando receber %d %d\n", i+1, links_table[i].last_rec);
+
+				if(links_table[i].last_rec == CONEX_LIMIT){
+					links_table[id_router].dist_cost[i] = INFINITE;
+					links_table[i].is_neigh = FALSE;
+					for(int j = 0; j < N_ROT; j++){
+						if(links_table[id_router].dist_path[j] == i){
+							links_table[id_router].dist_cost[j] = INFINITE;
+							links_table[id_router].dist_path[j] = ERROR;
+						}
+					}
+					pthread_mutex_unlock(&update_links_table);
+					send_links();
+					update_dist();
 	
-	FILE *config_file = fopen("roteadores.config", "r");
-
-	if(!config_file)
-		die("\t Não foi possivel abrir o arquvio de configuração dos roteadores! ");
-
-	for (int i = 0; fscanf(config_file, "%d %d %s", &router[i].id, &router[i].port, router[i].ip) != EOF; i++);
-	fclose(config_file);
-
-	printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
-	printf("\t┃                  Informações do Roteador %02d                  ┃\n", id_router+1);
-	printf("\t┣━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");    
-	printf("\t┃ ID Roteador ┃   Porta   ┃           Endereço de IP           ┃\n");
-	printf("\t┣━━━━━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");
-	printf("\t┃     %02d      ┃  %6d   ┃  %32s  ┃\n", router[id_router].id,  router[id_router].port,  router[id_router].ip);
-	printf("\t┗━━━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
-	sleep(2);
-
-	if((router_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == ERROR)
-		die("\t Erro ao criar socket! ");
-
-	memset((char *) &si_me, 0, sizeof(si_me));
-	
-	si_me.sin_family = AF_INET;
-	si_me.sin_port = htons(router[id_router].port);
-	si_me.sin_addr.s_addr = htonl(INADDR_ANY);
-
-	if(bind(router_socket, (struct sockaddr *) &si_me, sizeof(si_me)) == ERROR)
-		die("\t Erro ao conectar o socket a porta! ");
+				}
+				else{
+					pthread_mutex_unlock(&update_links_table);
+					send_links();
+				}
+			}
+		}
+	}
 }
+
+
 
 void send_message(Data_Packet message_out){//função que enviar mensagem
 	int timeouts = 0;
@@ -281,40 +319,6 @@ void create_message(){						//função cria mensagem
 	pct_enum++; 						
 
 	send_message(message_out);
-}
-
-void *update_links(void *data){
-	sleep(10);
-
-	while(1){
-		sleep(10);
-		for(int i = 0; i < N_ROT; i++){
-			if(links_table[i].is_neigh){
-				pthread_mutex_lock(&update_links_table);
-				links_table[i].last_rec++;
-				printf("Esperando receber %d %d\n", i+1, links_table[i].last_rec);
-
-				if(links_table[i].last_rec == CONEX_LIMIT){
-					links_table[id_router].dist_cost[i] = INFINITE;
-					links_table[i].is_neigh = FALSE;
-					for(int j = 0; j < N_ROT; j++){
-						if(links_table[id_router].dist_path[j] == i){
-							links_table[id_router].dist_cost[j] = INFINITE;
-							links_table[id_router].dist_path[j] = ERROR;
-						}
-					}
-
-					pthread_mutex_unlock(&update_links_table);
-					update_dist();
-	
-				}
-				else{
-					pthread_mutex_unlock(&update_links_table);
-					send_links();
-				}
-			}
-		}
-	}
 }
 
 void *receiver(void *data){ //função da thread receiver
