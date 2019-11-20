@@ -8,8 +8,8 @@ Router router[N_ROT];
 Table router_table;
 Links links_table[N_ROT];
 
-int router_socket, id_router;				//Configurações do roteador
-int pct_enum = 1, count_pct = 0;			//Controles de Pacotes
+int router_socket, id_router;								//Configurações do roteador
+int pct_enum = 1, count_pct = 0, update_time = 0;			//Controles de Pacotes
 Data_Packet pct_storage[QUEUE_SIZE];
 
 void die(char *s){
@@ -173,15 +173,15 @@ void update_dist(){
 	for(int i = 0; i < N_ROT; i++){
 		if(!links_table[i].is_neigh)
 			continue;
+		link_cost = links_table[i].link_cost;
 		for(int j = 0; j < N_ROT; j++){
-			link_cost = links_table[i].link_cost;
-			if(links_table)
 			if((links_table[id_router].dist_cost[j] > links_table[i].dist_cost[j] + link_cost)){
 				pthread_mutex_lock(&update_links_table);
 				links_table[id_router].dist_cost[j] = links_table[i].dist_cost[j] + link_cost;
-				pthread_mutex_unlock(&update_links_table);
+				links_table[id_router].dist_path[j] = i;
 				router_table.path[j] = i;
 				router_table.cost[j] = links_table[i].dist_cost[j] + link_cost;
+				pthread_mutex_unlock(&update_links_table);
 				clk = time(NULL);
 				ver = TRUE;
 			}
@@ -189,6 +189,7 @@ void update_dist(){
 	}
 
 	if(ver){
+		update_time += 15;
 		printf("\t┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
 		printf("\t┃ Vetor Distancia alterado em: %s", ctime(&clk));
 		printf("\t┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");
@@ -202,14 +203,15 @@ void *update_links(void *data){
 	sleep(50);
 
 	while(1){
-		sleep(10);
+		sleep(10+update_time);
+		update_time = 0;
 		for(int i = 0; i < N_ROT; i++){
 			if(links_table[i].is_neigh){
 				pthread_mutex_lock(&update_links_table);
 				links_table[i].last_rec++;
 				printf("\tEsperando receber %d %d\n", i+1, links_table[i].last_rec);
 
-				if(links_table[i].last_rec == CONEX_LIMIT){
+				if(links_table[i].last_rec > CONEX_LIMIT){
 					links_table[id_router].dist_cost[i] = INFINITE;
 					links_table[i].is_neigh = FALSE;
 					for(int j = 0; j < N_ROT; j++){
@@ -221,7 +223,6 @@ void *update_links(void *data){
 					pthread_mutex_unlock(&update_links_table);
 					send_links();
 					update_dist();
-	
 				}
 				else{
 					pthread_mutex_unlock(&update_links_table);
@@ -231,8 +232,6 @@ void *update_links(void *data){
 		}
 	}
 }
-
-
 
 void send_message(Data_Packet message_out){//função que enviar mensagem
 	int timeouts = 0;
@@ -388,7 +387,6 @@ void *receiver(void *data){ //função da thread receiver
 			sleep(2);
 			send_message(message_in);
 		}
-		menu();
 	}
 }
 
