@@ -200,13 +200,13 @@ void update_dist(){
 }
 
 void *update_links(void *data){
-	sleep(50);
+	sleep(20);
 
 	while(1){
-		sleep(10+update_time);
+		sleep(10);
 		update_time = 0;
 		for(int i = 0; i < N_ROT; i++){
-			if(links_table[i].is_neigh){
+			if(links_table[i].is_neigh || links_table[i].last_rec > 3){
 				pthread_mutex_lock(&update_links_table);
 				links_table[i].last_rec++;
 				printf("\tEsperando receber %d %d\n", i+1, links_table[i].last_rec);

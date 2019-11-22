@@ -12,7 +12,7 @@
 #define TIMEOUT_MAX 10		//Quantidade Maxima de Reenvios
 #define CONEX_LIMIT 3		//Número máximo de espera para perda de conexão
 #define TIMEOUT_MS 1000		//Tempo timeout
-#define N_ROT 4				//Número de roteadores
+#define N_ROT 3				//Número de roteadores
 #define MSG_SIZE 100		//Tamanho máximo da mensagem
 #define QUEUE_SIZE 100		//Tamanho da fila dos roteadores
 #define TRUE 1				//Verdadeiro
