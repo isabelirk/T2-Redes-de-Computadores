@@ -173,7 +173,7 @@ void update_dist(){
 	for(int i = 0; i < N_ROT; i++){
 		if(!links_table[i].is_neigh)
 			continue;
-		link_cost = links_table[id_router].dist_cost[i];
+		link_cost = links_table[i].link_cost > links_table[id_router].dist_cost[i] ? links_table[id_router].dist_cost[i] : links_table[i].link_cost;
 		for(int j = 0; j < N_ROT; j++){
 			if((links_table[id_router].dist_cost[j] > links_table[i].dist_cost[j] + link_cost)){
 				pthread_mutex_lock(&update_links_table);
